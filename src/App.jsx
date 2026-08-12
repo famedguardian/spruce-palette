@@ -129,78 +129,138 @@ function saveCustomLeathers(list) {
   }
 }
 
-// ---------- combined strip: colors touching, no gaps, for direct comparison ----------
-// The leather band is fixed (click copies hex). The other four are editable —
-// click opens a native color picker right on that band — with a reset (↺) once changed.
-function CombinedStrip({ leather, display, overrides, onChange, onReset }) {
+// ---------- combined strip: colors touching, no gaps — read-only reference + copy ----------
+function CombinedStrip({ leather, display, overrides, onReset }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
-  const copy = (hex, i) => {
+  const copy = (hex, key) => {
     navigator.clipboard?.writeText(hex).catch(() => {});
-    setCopiedIdx(i);
+    setCopiedIdx(key);
     setTimeout(() => setCopiedIdx(null), 1000);
   };
 
-  const editable = [
-    { key: "liner", label: "Liner", n: display.liner.n, h: display.liner.h },
-    { key: "thread", label: "Thread", n: display.thread.n, h: display.thread.h },
-    { key: "ribbon", label: "Ribbon", n: display.ribbon.n, h: display.ribbon.h },
-    { key: "end", label: "End sheet", n: display.end.n, h: display.end.h },
+  const items = [
+    { key: "leather", label: "Leather", h: leather.hex },
+    { key: "liner", label: "Liner", h: display.liner.h },
+    { key: "thread", label: "Thread", h: display.thread.h },
+    { key: "ribbon", label: "Ribbon", h: display.ribbon.h },
+    { key: "end", label: "End sheet", h: display.end.h },
   ];
 
   return (
-    <div className="flex w-full rounded-sm overflow-hidden" style={{ border: "1px solid #3a2f24", height: 130 }}>
-      {/* leather — fixed, click to copy */}
-      <button
-        onClick={() => copy(leather.hex, "leather")}
-        className="flex-1 flex flex-col justify-end items-start p-2 relative"
-        style={{ background: leather.hex, minWidth: 0 }}
-      >
-        <span className="text-[10px] font-medium tracking-wide truncate w-full text-left" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(leather.hex) }}>
-          Leather
-        </span>
-        <span className="text-[9px] truncate w-full text-left opacity-90" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(leather.hex) }}>
-          {copiedIdx === "leather" ? "copied" : leather.hex.toUpperCase()}
-        </span>
-      </button>
-
-      {/* editable bands */}
-      {editable.map((it) => (
-        <div key={it.key} className="flex-1 relative" style={{ background: it.h, minWidth: 0 }}>
-          <input
-            type="color"
-            value={it.h}
-            onChange={(e) => onChange(it.key, e.target.value)}
-            title={`Change ${it.label.toLowerCase()}`}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-          />
-          <div className="h-full flex flex-col justify-end items-start p-2 pointer-events-none">
-            <span className="text-[10px] font-medium tracking-wide truncate w-full text-left" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
-              {it.label}
-            </span>
-            <span className="text-[9px] truncate w-full text-left opacity-90" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
-              {it.h.toUpperCase()}
-            </span>
-          </div>
+    <div className="flex w-full rounded-sm overflow-hidden" style={{ border: "1px solid #3a2f24", height: 110 }}>
+      {items.map((it) => (
+        <button
+          key={it.key}
+          onClick={() => copy(it.h, it.key)}
+          className="flex-1 flex flex-col justify-end items-start p-2 relative"
+          style={{ background: it.h, minWidth: 0 }}
+        >
+          <span className="text-[10px] font-medium tracking-wide truncate w-full text-left" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
+            {it.label}
+          </span>
+          <span className="text-[9px] truncate w-full text-left opacity-90" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
+            {copiedIdx === it.key ? "copied" : it.h.toUpperCase()}
+          </span>
           {overrides[it.key] && (
             <span
               onClick={(e) => { e.stopPropagation(); onReset(it.key); }}
               title="Reset to suggested color"
               className="absolute top-1 right-1"
-              style={{
-                fontSize: 12,
-                lineHeight: 1,
-                padding: "2px 5px",
-                borderRadius: 3,
-                color: textOn(it.h),
-                background: "rgba(0,0,0,0.25)",
-                cursor: "pointer",
-              }}
+              style={{ fontSize: 12, lineHeight: 1, padding: "2px 5px", borderRadius: 3, color: textOn(it.h), background: "rgba(0,0,0,0.25)" }}
             >
               ↺
             </span>
           )}
-        </div>
+        </button>
       ))}
+    </div>
+  );
+}
+
+// ---------- clickable Bible mockup — hover a region to see it highlight, click to change its color ----------
+const HOTZONES = [
+  { key: "thread", label: "Foil-stamped cross", x: 55, y: 62, w: 78, h: 108 },
+  { key: "thread", label: "Gilt page edge", x: 178, y: 8, w: 14, h: 228 },
+  { key: "end", label: "End sheet", x: 26, y: 8, w: 14, h: 220 },
+  { key: "liner", label: "Liner (turned corner)", x: 0, y: 194, w: 40, h: 36 },
+  { key: "ribbon", label: "Ribbon", x: 78, y: 228, w: 28, h: 50 },
+];
+
+function BibleMockup({ leather, display, onChange }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const hoverZone = hoverIdx !== null ? HOTZONES[hoverIdx] : null;
+
+  return (
+    <div>
+      <div style={{ position: "relative", width: "100%", maxWidth: 260, aspectRatio: "200 / 280", margin: "0 auto" }}>
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 200 280">
+          <rect x="18" y="8" width="172" height="228" rx="2" fill="#F2ECDD" />
+          <rect x="180" y="8" width="8" height="228" fill={display.thread.h} />
+          <rect x="18" y="228" width="162" height="8" fill={display.thread.h} />
+          <rect x="18" y="8" width="162" height="4" fill={display.thread.h} opacity="0.6" />
+
+          <rect x="8" y="0" width="172" height="228" rx="3" fill={leather.hex} />
+          <rect x="30" y="8" width="6" height="220" fill={display.end.h} />
+
+          <rect x="8" y="0" width="22" height="228" fill="#000000" opacity="0.16" />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <g key={i}>
+              <rect x="8" y={26 + i * 42} width="22" height="5" fill="#000000" opacity="0.22" />
+              <rect x="8" y={25 + i * 42} width="22" height="1.5" fill="#ffffff" opacity="0.12" />
+            </g>
+          ))}
+
+          <g opacity="0.9">
+            <rect x="91" y="71" width="8" height="90" fill="#000000" opacity="0.22" />
+            <rect x="63" y="97" width="64" height="8" fill="#000000" opacity="0.22" />
+            <rect x="90" y="70" width="8" height="90" fill={display.thread.h} />
+            <rect x="62" y="96" width="64" height="8" fill={display.thread.h} />
+          </g>
+
+          <path d="M8,206 L30,228 L8,228 Z" fill={display.liner.h} stroke="#000000" strokeOpacity="0.15" />
+
+          <rect x="88" y="236" width="8" height="30" fill={display.ribbon.h} />
+          <polygon points="88,264 92,272 96,264" fill="#2B2118" />
+
+          {/* hover highlight, drawn last so it sits on top */}
+          {hoverZone && (
+            <rect
+              x={hoverZone.x} y={hoverZone.y} width={hoverZone.w} height={hoverZone.h}
+              fill="#ffffff" opacity="0.16"
+              stroke="#B8935A" strokeWidth="1.5" strokeDasharray="4 3"
+              pointerEvents="none"
+            />
+          )}
+        </svg>
+
+        {/* clickable hot zones — invisible color inputs positioned over each region */}
+        {HOTZONES.map((z, i) => (
+          <div
+            key={i}
+            onMouseEnter={() => setHoverIdx(i)}
+            onMouseLeave={() => setHoverIdx((cur) => (cur === i ? null : cur))}
+            style={{
+              position: "absolute",
+              left: `${(z.x / 200) * 100}%`,
+              top: `${(z.y / 280) * 100}%`,
+              width: `${(z.w / 200) * 100}%`,
+              height: `${(z.h / 280) * 100}%`,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="color"
+              value={display[z.key].h}
+              onChange={(e) => onChange(z.key, e.target.value)}
+              title={`Click to change: ${z.label}`}
+              style={{ width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="text-center text-[11px] mt-2" style={{ fontFamily: "'IBM Plex Mono',monospace", color: hoverZone ? "#B8935A" : "#6f6558" }}>
+        {hoverZone ? `Click to change: ${hoverZone.label}` : "Hover the cover to see what you can change"}
+      </div>
     </div>
   );
 }
@@ -417,66 +477,28 @@ export default function App() {
 
         {/* result view */}
         <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
-          2 · SEE THE PALETTE TOGETHER
+          2 · CLICK THE COVER TO TRY COLORS
+        </div>
+        <div className="rounded-md p-5 mb-4" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
+          <BibleMockup leather={leather} display={display} onChange={setOverride} />
+        </div>
+
+        <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
+          3 · REFERENCE STRIP
         </div>
         <CombinedStrip
           leather={leather}
           display={display}
           overrides={overrides}
-          onChange={setOverride}
           onReset={resetOverride}
         />
         <p className="mt-2 mb-6 text-[11px]" style={{ color: "#6f6558", fontFamily: "'IBM Plex Mono',monospace" }}>
-          click leather to copy its hex · click any other band to change that color
+          click any band to copy its hex · ↺ appears once you've changed a color, to reset it
         </p>
 
-        {/* palette card with mockup */}
+        {/* detail list */}
         <div className="rounded-md p-5" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
-          <div className="flex justify-center pt-1 pb-2">
-            <svg width="220" height="308" viewBox="0 0 200 280">
-              {/* page block (paper) */}
-              <rect x="18" y="8" width="172" height="228" rx="2" fill="#F2ECDD" />
-              {/* gilt page edges — tinted with the thread color, a common Bible-binding touch */}
-              <rect x="180" y="8" width="8" height="228" fill={display.thread.h} />
-              <rect x="18" y="228" width="162" height="8" fill={display.thread.h} />
-              <rect x="18" y="8" width="162" height="4" fill={display.thread.h} opacity="0.6" />
-
-              {/* cover */}
-              <rect x="8" y="0" width="172" height="228" rx="3" fill={leather.hex} />
-
-              {/* end sheet peeking at the hinge */}
-              <rect x="30" y="8" width="6" height="220" fill={display.end.h} />
-
-              {/* spine shading + raised bands */}
-              <rect x="8" y="0" width="22" height="228" fill="#000000" opacity="0.16" />
-              {[0, 1, 2, 3, 4].map((i) => (
-                <g key={i}>
-                  <rect x="8" y={26 + i * 42} width="22" height="5" fill="#000000" opacity="0.22" />
-                  <rect x="8" y={25 + i * 42} width="22" height="1.5" fill="#ffffff" opacity="0.12" />
-                </g>
-              ))}
-
-              {/* foil-stamped cross */}
-              <g opacity="0.9">
-                <rect x="91" y="71" width="8" height="90" fill="#000000" opacity="0.22" />
-                <rect x="63" y="97" width="64" height="8" fill="#000000" opacity="0.22" />
-                <rect x="90" y="70" width="8" height="90" fill={display.thread.h} />
-                <rect x="62" y="96" width="64" height="8" fill={display.thread.h} />
-              </g>
-
-              {/* turned-up corner revealing the liner */}
-              <path d="M8,206 L30,228 L8,228 Z" fill={display.liner.h} stroke="#000000" strokeOpacity="0.15" />
-
-              {/* ribbon marker */}
-              <rect x="88" y="236" width="8" height="30" fill={display.ribbon.h} />
-              <polygon points="88,264 92,272 96,264" fill="#2B2118" />
-            </svg>
-          </div>
-          <div className="text-center text-[10px]" style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#6f6558" }}>
-            cover · gilt page edge · foil cross · turned corner (liner) · ribbon
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-4" style={{ borderTop: "1px solid #3a2f24" }}>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: leather.name, hex: leather.hex, code: "cover" },
               { label: display.liner.n, hex: display.liner.h, code: "liner" },
@@ -494,11 +516,10 @@ export default function App() {
 
         <p className="mt-5 text-[12px] leading-relaxed" style={{ color: "#9C8F7C" }}>
           Curated pairings follow common bindery conventions — gold or cream
-          against dark leathers, tone-on-tone for a quieter look. Click liner,
-          thread, ribbon, or end sheet in the strip above to try any color
-          against your chosen leather; the ↺ resets it back to the suggestion.
-          Add your own leather colors with "Add leather" — they're saved on
-          this device and get a coordinating set generated automatically.
+          against dark leathers, tone-on-tone for a quieter look. Hover the
+          cover above to see what each region controls, then click to try any
+          color against your chosen leather. Add your own leather colors with
+          "Add leather" — they're saved on this device.
         </p>
       </div>
     </div>
