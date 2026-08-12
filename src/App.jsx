@@ -179,7 +179,7 @@ function CombinedStrip({ leather, display, overrides, onReset }) {
 
 // ---------- clickable Bible mockup — hover a region to see it highlight, click to change its color ----------
 const HOTZONES = [
-  { key: "thread", label: "Foil-stamped cross", x: 55, y: 62, w: 78, h: 108 },
+  { key: "thread", label: "Foil-stamped title", x: 38, y: 90, w: 112, h: 66 },
   { key: "thread", label: "Gilt page edge", x: 178, y: 8, w: 14, h: 228 },
   { key: "end", label: "End sheet", x: 26, y: 8, w: 14, h: 220 },
   { key: "liner", label: "Liner (turned corner)", x: 0, y: 194, w: 40, h: 36 },
@@ -223,11 +223,12 @@ function BibleMockup({ leather, display, onChange, pebbled }) {
             </g>
           ))}
 
-          <g opacity="0.9">
-            <rect x="91" y="71" width="8" height="90" fill="#000000" opacity="0.22" />
-            <rect x="63" y="97" width="64" height="8" fill="#000000" opacity="0.22" />
-            <rect x="90" y="70" width="8" height="90" fill={display.thread.h} />
-            <rect x="62" y="96" width="64" height="8" fill={display.thread.h} />
+          {/* foil-stamped title */}
+          <g style={{ fontFamily: "'Fraunces', serif" }}>
+            <text x="95" y="119" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill="#000000" opacity="0.25">HOLY</text>
+            <text x="95" y="146" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill="#000000" opacity="0.25">BIBLE</text>
+            <text x="94" y="118" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill={display.thread.h}>HOLY</text>
+            <text x="94" y="145" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill={display.thread.h}>BIBLE</text>
           </g>
 
           <path d="M8,206 L30,228 L8,228 Z" fill={display.liner.h} stroke="#000000" strokeOpacity="0.15" />
