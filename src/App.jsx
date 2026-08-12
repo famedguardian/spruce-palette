@@ -433,18 +433,47 @@ export default function App() {
         {/* palette card with mockup */}
         <div className="rounded-md p-5" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
           <div className="flex justify-center pt-1 pb-2">
-            <svg width="200" height="260" viewBox="0 0 150 200">
-              <rect x="0" y="0" width="150" height="200" rx="4" fill={leather.hex} />
-              <rect x="6" y="6" width="12" height="188" fill={display.end.h} opacity="0.9" />
-              <rect x="18" y="6" width="6" height="188" fill={display.liner.h} />
-              <rect x="60" y="185" width="4" height="15" fill={display.ribbon.h} />
-              {[...Array(6)].map((_, i) => (
-                <line key={i} x1="34" y1={14 + i * 30} x2="140" y2={14 + i * 30} stroke={display.thread.h} strokeWidth="1.5" />
+            <svg width="220" height="308" viewBox="0 0 200 280">
+              {/* page block (paper) */}
+              <rect x="18" y="8" width="172" height="228" rx="2" fill="#F2ECDD" />
+              {/* gilt page edges — tinted with the thread color, a common Bible-binding touch */}
+              <rect x="180" y="8" width="8" height="228" fill={display.thread.h} />
+              <rect x="18" y="228" width="162" height="8" fill={display.thread.h} />
+              <rect x="18" y="8" width="162" height="4" fill={display.thread.h} opacity="0.6" />
+
+              {/* cover */}
+              <rect x="8" y="0" width="172" height="228" rx="3" fill={leather.hex} />
+
+              {/* end sheet peeking at the hinge */}
+              <rect x="30" y="8" width="6" height="220" fill={display.end.h} />
+
+              {/* spine shading + raised bands */}
+              <rect x="8" y="0" width="22" height="228" fill="#000000" opacity="0.16" />
+              {[0, 1, 2, 3, 4].map((i) => (
+                <g key={i}>
+                  <rect x="8" y={26 + i * 42} width="22" height="5" fill="#000000" opacity="0.22" />
+                  <rect x="8" y={25 + i * 42} width="22" height="1.5" fill="#ffffff" opacity="0.12" />
+                </g>
               ))}
+
+              {/* foil-stamped cross */}
+              <g opacity="0.9">
+                <rect x="91" y="71" width="8" height="90" fill="#000000" opacity="0.22" />
+                <rect x="63" y="97" width="64" height="8" fill="#000000" opacity="0.22" />
+                <rect x="90" y="70" width="8" height="90" fill={display.thread.h} />
+                <rect x="62" y="96" width="64" height="8" fill={display.thread.h} />
+              </g>
+
+              {/* turned-up corner revealing the liner */}
+              <path d="M8,206 L30,228 L8,228 Z" fill={display.liner.h} stroke="#000000" strokeOpacity="0.15" />
+
+              {/* ribbon marker */}
+              <rect x="88" y="236" width="8" height="30" fill={display.ribbon.h} />
+              <polygon points="88,264 92,272 96,264" fill="#2B2118" />
             </svg>
           </div>
           <div className="text-center text-[10px]" style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#6f6558" }}>
-            cover · pastedown · thread · ribbon marker
+            cover · gilt page edge · foil cross · turned corner (liner) · ribbon
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-4" style={{ borderTop: "1px solid #3a2f24" }}>
