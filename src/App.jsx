@@ -130,42 +130,76 @@ function saveCustomLeathers(list) {
 }
 
 // ---------- combined strip: colors touching, no gaps, for direct comparison ----------
-function CombinedStrip({ leather, active }) {
+// The leather band is fixed (click copies hex). The other four are editable —
+// click opens a native color picker right on that band — with a reset (↺) once changed.
+function CombinedStrip({ leather, display, overrides, onChange, onReset }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
-  const items = [
-    { label: "Leather", n: leather.name, h: leather.hex },
-    { label: "Liner", n: active.liner.n, h: active.liner.h },
-    { label: "Thread", n: active.thread.n, h: active.thread.h },
-    { label: "Ribbon", n: active.ribbon.n, h: active.ribbon.h },
-    { label: "End sheet", n: active.end.n, h: active.end.h },
-  ];
   const copy = (hex, i) => {
     navigator.clipboard?.writeText(hex).catch(() => {});
     setCopiedIdx(i);
     setTimeout(() => setCopiedIdx(null), 1000);
   };
+
+  const editable = [
+    { key: "liner", label: "Liner", n: display.liner.n, h: display.liner.h },
+    { key: "thread", label: "Thread", n: display.thread.n, h: display.thread.h },
+    { key: "ribbon", label: "Ribbon", n: display.ribbon.n, h: display.ribbon.h },
+    { key: "end", label: "End sheet", n: display.end.n, h: display.end.h },
+  ];
+
   return (
     <div className="flex w-full rounded-sm overflow-hidden" style={{ border: "1px solid #3a2f24", height: 130 }}>
-      {items.map((it, i) => (
-        <button
-          key={it.label}
-          onClick={() => copy(it.h, i)}
-          className="flex-1 flex flex-col justify-end items-start p-2 transition-transform hover:scale-[1.02] relative"
-          style={{ background: it.h, minWidth: 0 }}
-        >
-          <span
-            className="text-[10px] font-medium tracking-wide truncate w-full text-left"
-            style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}
-          >
-            {it.label}
-          </span>
-          <span
-            className="text-[9px] truncate w-full text-left opacity-90"
-            style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}
-          >
-            {copiedIdx === i ? "copied" : it.h.toUpperCase()}
-          </span>
-        </button>
+      {/* leather — fixed, click to copy */}
+      <button
+        onClick={() => copy(leather.hex, "leather")}
+        className="flex-1 flex flex-col justify-end items-start p-2 relative"
+        style={{ background: leather.hex, minWidth: 0 }}
+      >
+        <span className="text-[10px] font-medium tracking-wide truncate w-full text-left" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(leather.hex) }}>
+          Leather
+        </span>
+        <span className="text-[9px] truncate w-full text-left opacity-90" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(leather.hex) }}>
+          {copiedIdx === "leather" ? "copied" : leather.hex.toUpperCase()}
+        </span>
+      </button>
+
+      {/* editable bands */}
+      {editable.map((it) => (
+        <div key={it.key} className="flex-1 relative" style={{ background: it.h, minWidth: 0 }}>
+          <input
+            type="color"
+            value={it.h}
+            onChange={(e) => onChange(it.key, e.target.value)}
+            title={`Change ${it.label.toLowerCase()}`}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+          />
+          <div className="h-full flex flex-col justify-end items-start p-2 pointer-events-none">
+            <span className="text-[10px] font-medium tracking-wide truncate w-full text-left" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
+              {it.label}
+            </span>
+            <span className="text-[9px] truncate w-full text-left opacity-90" style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}>
+              {it.h.toUpperCase()}
+            </span>
+          </div>
+          {overrides[it.key] && (
+            <span
+              onClick={(e) => { e.stopPropagation(); onReset(it.key); }}
+              title="Reset to suggested color"
+              className="absolute top-1 right-1"
+              style={{
+                fontSize: 12,
+                lineHeight: 1,
+                padding: "2px 5px",
+                borderRadius: 3,
+                color: textOn(it.h),
+                background: "rgba(0,0,0,0.25)",
+                cursor: "pointer",
+              }}
+            >
+              ↺
+            </span>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -194,6 +228,32 @@ export default function App() {
   }, [useCustomId, leather, selected]);
 
   const active = options[Math.min(variant, options.length - 1)];
+
+  // per-swatch manual overrides — let you click any supporting color and change
+  // it without losing the curated pairing. Reset whenever the base pairing changes.
+  const [overrides, setOverrides] = useState({});
+  const pairingKey = `${leather.hex}-${variant}`;
+  useEffect(() => {
+    setOverrides({});
+  }, [pairingKey]);
+
+  const display = useMemo(() => ({
+    liner: overrides.liner ? { n: "Custom", h: overrides.liner } : active.liner,
+    thread: overrides.thread ? { n: "Custom", h: overrides.thread } : active.thread,
+    ribbon: overrides.ribbon ? { n: "Custom", h: overrides.ribbon } : active.ribbon,
+    end: overrides.end ? { n: "Custom", h: overrides.end } : active.end,
+  }), [active, overrides]);
+
+  function setOverride(key, hex) {
+    setOverrides((prev) => ({ ...prev, [key]: hex }));
+  }
+  function resetOverride(key) {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
 
   function addLeather() {
     const name = newName.trim() || "My Leather";
@@ -359,9 +419,15 @@ export default function App() {
         <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
           2 · SEE THE PALETTE TOGETHER
         </div>
-        <CombinedStrip leather={leather} active={active} />
+        <CombinedStrip
+          leather={leather}
+          display={display}
+          overrides={overrides}
+          onChange={setOverride}
+          onReset={resetOverride}
+        />
         <p className="mt-2 mb-6 text-[11px]" style={{ color: "#6f6558", fontFamily: "'IBM Plex Mono',monospace" }}>
-          tap a band to copy its hex
+          click leather to copy its hex · click any other band to change that color
         </p>
 
         {/* palette card with mockup */}
@@ -369,11 +435,11 @@ export default function App() {
           <div className="flex justify-center pt-1 pb-2">
             <svg width="200" height="260" viewBox="0 0 150 200">
               <rect x="0" y="0" width="150" height="200" rx="4" fill={leather.hex} />
-              <rect x="6" y="6" width="12" height="188" fill={active.end.h} opacity="0.9" />
-              <rect x="18" y="6" width="6" height="188" fill={active.liner.h} />
-              <rect x="60" y="185" width="4" height="15" fill={active.ribbon.h} />
+              <rect x="6" y="6" width="12" height="188" fill={display.end.h} opacity="0.9" />
+              <rect x="18" y="6" width="6" height="188" fill={display.liner.h} />
+              <rect x="60" y="185" width="4" height="15" fill={display.ribbon.h} />
               {[...Array(6)].map((_, i) => (
-                <line key={i} x1="34" y1={14 + i * 30} x2="140" y2={14 + i * 30} stroke={active.thread.h} strokeWidth="1.5" />
+                <line key={i} x1="34" y1={14 + i * 30} x2="140" y2={14 + i * 30} stroke={display.thread.h} strokeWidth="1.5" />
               ))}
             </svg>
           </div>
@@ -384,10 +450,10 @@ export default function App() {
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-4" style={{ borderTop: "1px solid #3a2f24" }}>
             {[
               { label: leather.name, hex: leather.hex, code: "cover" },
-              { label: active.liner.n, hex: active.liner.h, code: "liner" },
-              { label: active.thread.n, hex: active.thread.h, code: "thread" },
-              { label: active.ribbon.n, hex: active.ribbon.h, code: "ribbon" },
-              { label: active.end.n, hex: active.end.h, code: "end sheet" },
+              { label: display.liner.n, hex: display.liner.h, code: "liner" },
+              { label: display.thread.n, hex: display.thread.h, code: "thread" },
+              { label: display.ribbon.n, hex: display.ribbon.h, code: "ribbon" },
+              { label: display.end.n, hex: display.end.h, code: "end sheet" },
             ].map((s) => (
               <div key={s.code}>
                 <div style={{ fontSize: 12, color: "#EDE4D3" }}>{s.label}</div>
@@ -399,9 +465,11 @@ export default function App() {
 
         <p className="mt-5 text-[12px] leading-relaxed" style={{ color: "#9C8F7C" }}>
           Curated pairings follow common bindery conventions — gold or cream
-          against dark leathers, tone-on-tone for a quieter look. Add your own
-          leather colors with "Add leather" — they're saved on this device and
-          get a coordinating set generated from color theory automatically.
+          against dark leathers, tone-on-tone for a quieter look. Click liner,
+          thread, ribbon, or end sheet in the strip above to try any color
+          against your chosen leather; the ↺ resets it back to the suggestion.
+          Add your own leather colors with "Add leather" — they're saved on
+          this device and get a coordinating set generated automatically.
         </p>
       </div>
     </div>
