@@ -186,7 +186,7 @@ const HOTZONES = [
   { key: "ribbon", label: "Ribbon", x: 78, y: 228, w: 28, h: 50 },
 ];
 
-function BibleMockup({ leather, display, onChange }) {
+function BibleMockup({ leather, display, onChange, pebbled }) {
   const [hoverIdx, setHoverIdx] = useState(null);
   const hoverZone = hoverIdx !== null ? HOTZONES[hoverIdx] : null;
 
@@ -194,12 +194,25 @@ function BibleMockup({ leather, display, onChange }) {
     <div>
       <div style={{ position: "relative", width: "100%", maxWidth: 260, aspectRatio: "200 / 280", margin: "0 auto" }}>
         <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 200 280">
+          <defs>
+            {/* procedural pebbled-grain texture: noise, lit from an angle, multiplied over the leather color */}
+            <filter id="pebbleGrain" x="-20%" y="-20%" width="140%" height="140%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="4" stitchTiles="stitch" result="noise" />
+              <feDiffuseLighting in="noise" surfaceScale="2.4" diffuseConstant="1.15" lightingColor="#ffffff" result="light">
+                <feDistantLight azimuth="235" elevation="55" />
+              </feDiffuseLighting>
+            </filter>
+          </defs>
+
           <rect x="18" y="8" width="172" height="228" rx="2" fill="#F2ECDD" />
           <rect x="180" y="8" width="8" height="228" fill={display.thread.h} />
           <rect x="18" y="228" width="162" height="8" fill={display.thread.h} />
           <rect x="18" y="8" width="162" height="4" fill={display.thread.h} opacity="0.6" />
 
           <rect x="8" y="0" width="172" height="228" rx="3" fill={leather.hex} />
+          {pebbled && (
+            <rect x="8" y="0" width="172" height="228" rx="3" fill="#ffffff" filter="url(#pebbleGrain)" opacity="0.8" style={{ mixBlendMode: "multiply" }} />
+          )}
           <rect x="30" y="8" width="6" height="220" fill={display.end.h} />
 
           <rect x="8" y="0" width="22" height="228" fill="#000000" opacity="0.16" />
@@ -271,6 +284,7 @@ export default function App() {
   const [useCustomId, setUseCustomId] = useState(null); // id of a saved custom leather in use
   const [variant, setVariant] = useState(0);
   const [addingOpen, setAddingOpen] = useState(false);
+  const [pebbled, setPebbled] = useState(true);
   const [newName, setNewName] = useState("");
   const [newHex, setNewHex] = useState("#7A5230");
 
@@ -476,11 +490,17 @@ export default function App() {
         )}
 
         {/* result view */}
-        <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
-          2 · CLICK THE COVER TO TRY COLORS
+        <div className="flex items-center justify-between mb-2">
+          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
+            2 · CLICK THE COVER TO TRY COLORS
+          </div>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input type="checkbox" checked={pebbled} onChange={(e) => setPebbled(e.target.checked)} style={{ accentColor: "#B8935A" }} />
+            <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#9C8F7C" }}>Pebbled grain</span>
+          </label>
         </div>
         <div className="rounded-md p-5 mb-4" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
-          <BibleMockup leather={leather} display={display} onChange={setOverride} />
+          <BibleMockup leather={leather} display={display} onChange={setOverride} pebbled={pebbled} />
         </div>
 
         <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
