@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
 // ---------- color math ----------
 function hexToHsl(hex) {
@@ -93,7 +93,7 @@ const PAIRINGS = {
   ],
 };
 
-// algorithmic fallback for any custom hex not in the curated list
+// algorithmic fallback for any leather without a curated entry (custom leathers included)
 function generateHarmony(hex) {
   const [h, s, l] = hexToHsl(hex);
   const liner = hslToHex(h, Math.max(s - 25, 10), l > 40 ? 15 : 78);
@@ -111,56 +111,112 @@ function generateHarmony(hex) {
   ];
 }
 
-function Swatch({ label, hex, code }) {
-  const [copied, setCopied] = useState(false);
+const STORAGE_KEY = "spruce-custom-leathers";
+
+function loadCustomLeathers() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+function saveCustomLeathers(list) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // storage unavailable — fail silently, list stays in memory for this session
+  }
+}
+
+// ---------- combined strip: colors touching, no gaps, for direct comparison ----------
+function CombinedStrip({ leather, active }) {
+  const [copiedIdx, setCopiedIdx] = useState(null);
+  const items = [
+    { label: "Leather", n: leather.name, h: leather.hex },
+    { label: "Liner", n: active.liner.n, h: active.liner.h },
+    { label: "Thread", n: active.thread.n, h: active.thread.h },
+    { label: "Ribbon", n: active.ribbon.n, h: active.ribbon.h },
+    { label: "End sheet", n: active.end.n, h: active.end.h },
+  ];
+  const copy = (hex, i) => {
+    navigator.clipboard?.writeText(hex).catch(() => {});
+    setCopiedIdx(i);
+    setTimeout(() => setCopiedIdx(null), 1000);
+  };
   return (
-    <button
-      onClick={() => {
-        navigator.clipboard?.writeText(hex).catch(() => {});
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1100);
-      }}
-      className="group text-left w-full"
-      style={{ fontFamily: "'Inter',sans-serif" }}
-    >
-      <div
-        className="w-full rounded-sm border transition-transform group-hover:-translate-y-0.5"
-        style={{ background: hex, height: 56, borderColor: "rgba(0,0,0,0.15)" }}
-      />
-      <div className="flex items-baseline justify-between mt-1.5">
-        <span className="text-[13px]" style={{ color: "#EDE4D3" }}>{label}</span>
-        <span
-          className="text-[10px] tracking-wide"
-          style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#9C8F7C" }}
+    <div className="flex w-full rounded-sm overflow-hidden" style={{ border: "1px solid #3a2f24", height: 130 }}>
+      {items.map((it, i) => (
+        <button
+          key={it.label}
+          onClick={() => copy(it.h, i)}
+          className="flex-1 flex flex-col justify-end items-start p-2 transition-transform hover:scale-[1.02] relative"
+          style={{ background: it.h, minWidth: 0 }}
         >
-          {copied ? "copied" : hex.toUpperCase()}
-        </span>
-      </div>
-      {code && (
-        <span className="text-[10px]" style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#6f6558" }}>
-          {code}
-        </span>
-      )}
-    </button>
+          <span
+            className="text-[10px] font-medium tracking-wide truncate w-full text-left"
+            style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}
+          >
+            {it.label}
+          </span>
+          <span
+            className="text-[9px] truncate w-full text-left opacity-90"
+            style={{ fontFamily: "'IBM Plex Mono',monospace", color: textOn(it.h) }}
+          >
+            {copiedIdx === i ? "copied" : it.h.toUpperCase()}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }
 
 export default function App() {
+  const [customLeathers, setCustomLeathers] = useState([]);
   const [selected, setSelected] = useState("black");
-  const [customHex, setCustomHex] = useState("#7A5230");
-  const [useCustom, setUseCustom] = useState(false);
+  const [useCustomId, setUseCustomId] = useState(null); // id of a saved custom leather in use
   const [variant, setVariant] = useState(0);
+  const [addingOpen, setAddingOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newHex, setNewHex] = useState("#7A5230");
 
-  const leather = useCustom
-    ? { id: "custom", name: "Your Leather", no: "—", hex: customHex }
+  useEffect(() => {
+    setCustomLeathers(loadCustomLeathers());
+  }, []);
+
+  const leather = useCustomId
+    ? customLeathers.find((c) => c.id === useCustomId) || LEATHERS[0]
     : LEATHERS.find((l) => l.id === selected);
 
   const options = useMemo(() => {
-    if (useCustom) return generateHarmony(customHex);
+    if (useCustomId) return generateHarmony(leather.hex);
     return PAIRINGS[selected];
-  }, [useCustom, customHex, selected]);
+  }, [useCustomId, leather, selected]);
 
   const active = options[Math.min(variant, options.length - 1)];
+
+  function addLeather() {
+    const name = newName.trim() || "My Leather";
+    const entry = { id: `custom-${Date.now()}`, name, hex: newHex };
+    const next = [...customLeathers, entry];
+    setCustomLeathers(next);
+    saveCustomLeathers(next);
+    setUseCustomId(entry.id);
+    setVariant(0);
+    setAddingOpen(false);
+    setNewName("");
+  }
+
+  function removeLeather(id, e) {
+    e.stopPropagation();
+    const next = customLeathers.filter((c) => c.id !== id);
+    setCustomLeathers(next);
+    saveCustomLeathers(next);
+    if (useCustomId === id) {
+      setUseCustomId(null);
+      setSelected("black");
+    }
+  }
 
   return (
     <div
@@ -184,7 +240,7 @@ export default function App() {
             </h1>
           </div>
           <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#6f6558" }}>
-            No. {leather.no}
+            No. {leather.no || "—"}
           </div>
         </div>
 
@@ -192,50 +248,92 @@ export default function App() {
         <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
           1 · SELECT LEATHER
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2">
           {LEATHERS.map((l) => (
             <button
               key={l.id}
-              onClick={() => { setUseCustom(false); setSelected(l.id); setVariant(0); }}
+              onClick={() => { setUseCustomId(null); setSelected(l.id); setVariant(0); }}
               className="rounded-sm p-2 text-left transition"
               style={{
-                background: !useCustom && selected === l.id ? "#2B2118" : "transparent",
-                border: `1px solid ${!useCustom && selected === l.id ? "#B8935A" : "#3a2f24"}`,
+                background: !useCustomId && selected === l.id ? "#2B2118" : "transparent",
+                border: `1px solid ${!useCustomId && selected === l.id ? "#B8935A" : "#3a2f24"}`,
               }}
             >
               <div style={{ background: l.hex, height: 30, borderRadius: 2 }} />
               <div style={{ fontSize: 11, color: "#EDE4D3", marginTop: 6 }}>{l.name}</div>
             </button>
           ))}
-          <button
-            onClick={() => setUseCustom(true)}
-            className="rounded-sm p-2 text-left transition"
-            style={{
-              background: useCustom ? "#2B2118" : "transparent",
-              border: `1px solid ${useCustom ? "#B8935A" : "#3a2f24"}`,
-            }}
-          >
-            <div
+
+          {customLeathers.map((l) => (
+            <button
+              key={l.id}
+              onClick={() => { setUseCustomId(l.id); setVariant(0); }}
+              className="rounded-sm p-2 text-left transition relative group"
               style={{
-                background: customHex,
-                height: 30,
-                borderRadius: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                background: useCustomId === l.id ? "#2B2118" : "transparent",
+                border: `1px solid ${useCustomId === l.id ? "#B8935A" : "#3a2f24"}`,
               }}
             >
-              <input
-                type="color"
-                value={customHex}
-                onChange={(e) => { setUseCustom(true); setCustomHex(e.target.value); }}
-                onClick={(e) => e.stopPropagation()}
-                style={{ opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
-              />
-            </div>
-            <div style={{ fontSize: 11, color: "#EDE4D3", marginTop: 6 }}>Custom hex</div>
+              <div style={{ background: l.hex, height: 30, borderRadius: 2 }} />
+              <div style={{ fontSize: 11, color: "#EDE4D3", marginTop: 6 }} className="truncate">{l.name}</div>
+              <span
+                onClick={(e) => removeLeather(l.id, e)}
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition"
+                style={{ fontSize: 12, color: "#B8935A", lineHeight: 1, padding: "2px 5px" }}
+                title="Remove"
+              >
+                ×
+              </span>
+            </button>
+          ))}
+
+          <button
+            onClick={() => setAddingOpen(true)}
+            className="rounded-sm p-2 text-left transition flex flex-col items-center justify-center"
+            style={{ border: "1px dashed #4a3d2e", minHeight: 66 }}
+          >
+            <span style={{ fontSize: 18, color: "#B8935A", lineHeight: 1 }}>+</span>
+            <span style={{ fontSize: 10, color: "#9C8F7C", marginTop: 4 }}>Add leather</span>
           </button>
         </div>
+
+        {/* add-leather inline form */}
+        {addingOpen && (
+          <div className="rounded-sm p-3 mb-4 flex flex-wrap items-center gap-3" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Leather name (e.g. Whiskey)"
+              className="px-2 py-1.5 rounded-sm text-[13px] flex-1 min-w-[160px]"
+              style={{ background: "#201812", border: "1px solid #3a2f24", color: "#EDE4D3", outline: "none" }}
+            />
+            <div className="flex items-center gap-2">
+              <div style={{ width: 32, height: 32, borderRadius: 4, background: newHex, border: "1px solid #3a2f24", position: "relative", overflow: "hidden" }}>
+                <input
+                  type="color"
+                  value={newHex}
+                  onChange={(e) => setNewHex(e.target.value)}
+                  style={{ opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
+                />
+              </div>
+              <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#9C8F7C" }}>{newHex.toUpperCase()}</span>
+            </div>
+            <button
+              onClick={addLeather}
+              className="px-3 py-1.5 rounded-full text-[11px]"
+              style={{ fontFamily: "'IBM Plex Mono',monospace", background: "#B8935A", color: "#201812" }}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => { setAddingOpen(false); setNewName(""); }}
+              className="px-3 py-1.5 rounded-full text-[11px]"
+              style={{ fontFamily: "'IBM Plex Mono',monospace", border: "1px solid #3a2f24", color: "#9C8F7C" }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
 
         {/* style toggle */}
         {options.length > 1 && (
@@ -257,22 +355,19 @@ export default function App() {
           </div>
         )}
 
-        {/* palette card */}
-        <div
-          className="rounded-md p-5"
-          style={{ background: "#2B2118", border: "1px solid #3a2f24" }}
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
-            <Swatch label="Leather" hex={leather.hex} code="cover" />
-            <Swatch label={active.liner.n} hex={active.liner.h} code="liner" />
-            <Swatch label={active.thread.n} hex={active.thread.h} code="thread" />
-            <Swatch label={active.ribbon.n} hex={active.ribbon.h} code="ribbon" />
-            <Swatch label={active.end.n} hex={active.end.h} code="end sheet" />
-          </div>
+        {/* result view */}
+        <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
+          2 · SEE THE PALETTE TOGETHER
+        </div>
+        <CombinedStrip leather={leather} active={active} />
+        <p className="mt-2 mb-6 text-[11px]" style={{ color: "#6f6558", fontFamily: "'IBM Plex Mono',monospace" }}>
+          tap a band to copy its hex
+        </p>
 
-          {/* mockup */}
-          <div className="flex justify-center pt-2 pb-1" style={{ borderTop: "1px solid #3a2f24" }}>
-            <svg width="150" height="200" viewBox="0 0 150 200">
+        {/* palette card with mockup */}
+        <div className="rounded-md p-5" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
+          <div className="flex justify-center pt-1 pb-2">
+            <svg width="200" height="260" viewBox="0 0 150 200">
               <rect x="0" y="0" width="150" height="200" rx="4" fill={leather.hex} />
               <rect x="6" y="6" width="12" height="188" fill={active.end.h} opacity="0.9" />
               <rect x="18" y="6" width="6" height="188" fill={active.liner.h} />
@@ -285,13 +380,28 @@ export default function App() {
           <div className="text-center text-[10px]" style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#6f6558" }}>
             cover · pastedown · thread · ribbon marker
           </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-4" style={{ borderTop: "1px solid #3a2f24" }}>
+            {[
+              { label: leather.name, hex: leather.hex, code: "cover" },
+              { label: active.liner.n, hex: active.liner.h, code: "liner" },
+              { label: active.thread.n, hex: active.thread.h, code: "thread" },
+              { label: active.ribbon.n, hex: active.ribbon.h, code: "ribbon" },
+              { label: active.end.n, hex: active.end.h, code: "end sheet" },
+            ].map((s) => (
+              <div key={s.code}>
+                <div style={{ fontSize: 12, color: "#EDE4D3" }}>{s.label}</div>
+                <div style={{ fontSize: 10, fontFamily: "'IBM Plex Mono',monospace", color: "#6f6558" }}>{s.code} · {s.hex.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <p className="mt-5 text-[12px] leading-relaxed" style={{ color: "#9C8F7C" }}>
-          Tap any swatch to copy its hex. Curated pairings follow common bindery
-          conventions — gold or cream against dark leathers, tone-on-tone for a
-          quieter look. Pick a custom hex for anything outside the standard
-          leather colors and it'll generate a coordinating set from color theory.
+          Curated pairings follow common bindery conventions — gold or cream
+          against dark leathers, tone-on-tone for a quieter look. Add your own
+          leather colors with "Add leather" — they're saved on this device and
+          get a coordinating set generated from color theory automatically.
         </p>
       </div>
     </div>
