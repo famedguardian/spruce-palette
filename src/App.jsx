@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import Bible3D from "./Bible3D.jsx";
 
 // ---------- color math ----------
 function hexToHsl(hex) {
@@ -173,108 +174,6 @@ function CombinedStrip({ leather, display, overrides, onReset }) {
           )}
         </button>
       ))}
-    </div>
-  );
-}
-
-// ---------- clickable Bible mockup — hover a region to see it highlight, click to change its color ----------
-const HOTZONES = [
-  { key: "thread", label: "Foil-stamped title", x: 38, y: 90, w: 112, h: 66 },
-  { key: "thread", label: "Gilt page edge", x: 178, y: 8, w: 14, h: 228 },
-  { key: "end", label: "End sheet", x: 26, y: 8, w: 14, h: 220 },
-  { key: "liner", label: "Liner (turned corner)", x: 0, y: 194, w: 40, h: 36 },
-  { key: "ribbon", label: "Ribbon", x: 78, y: 228, w: 28, h: 50 },
-];
-
-function BibleMockup({ leather, display, onChange, pebbled }) {
-  const [hoverIdx, setHoverIdx] = useState(null);
-  const hoverZone = hoverIdx !== null ? HOTZONES[hoverIdx] : null;
-
-  return (
-    <div>
-      <div style={{ position: "relative", width: "100%", maxWidth: 260, aspectRatio: "200 / 280", margin: "0 auto" }}>
-        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 200 280">
-          <defs>
-            {/* procedural pebbled-grain texture: noise, lit from an angle, multiplied over the leather color */}
-            <filter id="pebbleGrain" x="-20%" y="-20%" width="140%" height="140%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="4" stitchTiles="stitch" result="noise" />
-              <feDiffuseLighting in="noise" surfaceScale="2.4" diffuseConstant="1.15" lightingColor="#ffffff" result="light">
-                <feDistantLight azimuth="235" elevation="55" />
-              </feDiffuseLighting>
-            </filter>
-          </defs>
-
-          <rect x="18" y="8" width="172" height="228" rx="2" fill="#F2ECDD" />
-          <rect x="180" y="8" width="8" height="228" fill={display.thread.h} />
-          <rect x="18" y="228" width="162" height="8" fill={display.thread.h} />
-          <rect x="18" y="8" width="162" height="4" fill={display.thread.h} opacity="0.6" />
-
-          <rect x="8" y="0" width="172" height="228" rx="3" fill={leather.hex} />
-          {pebbled && (
-            <rect x="8" y="0" width="172" height="228" rx="3" fill="#ffffff" filter="url(#pebbleGrain)" opacity="0.8" style={{ mixBlendMode: "multiply" }} />
-          )}
-          <rect x="30" y="8" width="6" height="220" fill={display.end.h} />
-
-          <rect x="8" y="0" width="22" height="228" fill="#000000" opacity="0.16" />
-          {[0, 1, 2, 3, 4].map((i) => (
-            <g key={i}>
-              <rect x="8" y={26 + i * 42} width="22" height="5" fill="#000000" opacity="0.22" />
-              <rect x="8" y={25 + i * 42} width="22" height="1.5" fill="#ffffff" opacity="0.12" />
-            </g>
-          ))}
-
-          {/* foil-stamped title */}
-          <g style={{ fontFamily: "'Fraunces', serif" }}>
-            <text x="95" y="119" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill="#000000" opacity="0.25">HOLY</text>
-            <text x="95" y="146" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill="#000000" opacity="0.25">BIBLE</text>
-            <text x="94" y="118" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill={display.thread.h}>HOLY</text>
-            <text x="94" y="145" textAnchor="middle" fontSize="21" fontWeight="600" letterSpacing="3" fill={display.thread.h}>BIBLE</text>
-          </g>
-
-          <path d="M8,206 L30,228 L8,228 Z" fill={display.liner.h} stroke="#000000" strokeOpacity="0.15" />
-
-          <rect x="88" y="236" width="8" height="30" fill={display.ribbon.h} />
-          <polygon points="88,264 92,272 96,264" fill="#2B2118" />
-
-          {/* hover highlight, drawn last so it sits on top */}
-          {hoverZone && (
-            <rect
-              x={hoverZone.x} y={hoverZone.y} width={hoverZone.w} height={hoverZone.h}
-              fill="#ffffff" opacity="0.16"
-              stroke="#B8935A" strokeWidth="1.5" strokeDasharray="4 3"
-              pointerEvents="none"
-            />
-          )}
-        </svg>
-
-        {/* clickable hot zones — invisible color inputs positioned over each region */}
-        {HOTZONES.map((z, i) => (
-          <div
-            key={i}
-            onMouseEnter={() => setHoverIdx(i)}
-            onMouseLeave={() => setHoverIdx((cur) => (cur === i ? null : cur))}
-            style={{
-              position: "absolute",
-              left: `${(z.x / 200) * 100}%`,
-              top: `${(z.y / 280) * 100}%`,
-              width: `${(z.w / 200) * 100}%`,
-              height: `${(z.h / 280) * 100}%`,
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="color"
-              value={display[z.key].h}
-              onChange={(e) => onChange(z.key, e.target.value)}
-              title={`Click to change: ${z.label}`}
-              style={{ width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="text-center text-[11px] mt-2" style={{ fontFamily: "'IBM Plex Mono',monospace", color: hoverZone ? "#B8935A" : "#6f6558" }}>
-        {hoverZone ? `Click to change: ${hoverZone.label}` : "Hover the cover to see what you can change"}
-      </div>
     </div>
   );
 }
@@ -493,7 +392,7 @@ export default function App() {
         {/* result view */}
         <div className="flex items-center justify-between mb-2">
           <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
-            2 · CLICK THE COVER TO TRY COLORS
+            2 · DRAG TO ROTATE · CLICK TO TRY COLORS
           </div>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" checked={pebbled} onChange={(e) => setPebbled(e.target.checked)} style={{ accentColor: "#B8935A" }} />
@@ -501,7 +400,7 @@ export default function App() {
           </label>
         </div>
         <div className="rounded-md p-5 mb-4" style={{ background: "#2B2118", border: "1px solid #3a2f24" }}>
-          <BibleMockup leather={leather} display={display} onChange={setOverride} pebbled={pebbled} />
+          <Bible3D leather={leather} display={display} onChange={setOverride} pebbled={pebbled} />
         </div>
 
         <div className="mb-2" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: "0.1em", color: "#9C8F7C" }}>
@@ -537,9 +436,10 @@ export default function App() {
 
         <p className="mt-5 text-[12px] leading-relaxed" style={{ color: "#9C8F7C" }}>
           Curated pairings follow common bindery conventions — gold or cream
-          against dark leathers, tone-on-tone for a quieter look. Hover the
-          cover above to see what each region controls, then click to try any
-          color against your chosen leather. Add your own leather colors with
+          against dark leathers, tone-on-tone for a quieter look. Drag the
+          model above to spin it, hover to see what a region controls, and
+          click the gilt edge, title, corner, or ribbon to try any color
+          against your chosen leather. Add your own leather colors with
           "Add leather" — they're saved on this device.
         </p>
       </div>
